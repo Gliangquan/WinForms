@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PaperFormat.Application/PaperFormat.Application.csproj" />
+    <Project Path="src/PaperFormat.Domain/PaperFormat.Domain.csproj" />
+    <Project Path="src/PaperFormat.WinForms/PaperFormat.WinForms.csproj" />
+  </Folder>
+</Solution>

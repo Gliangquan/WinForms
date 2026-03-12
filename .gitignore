@@ -1,0 +1,11 @@
+.vs/
+.ssh/
+OfficeInterop/
+output/
+**/bin/
+**/obj/
+*.user
+*.suo
+*.cache
+*.log
+gen-github-key.cmd

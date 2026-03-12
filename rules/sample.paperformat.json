@@ -1,0 +1,123 @@
+{
+  "profileName": "Color Coverage Test",
+  "version": "1.1.0",
+  "description": "Color test profile for the currently supported document elements.",
+  "document": {
+    "enforceA4Paper": false
+  },
+  "paragraphRules": [
+    {
+      "ruleId": "heading-1-color",
+      "displayName": "Heading 1 color",
+      "storyScopes": [ "Main" ],
+      "styleNames": [ "Heading 1", "标题 1" ],
+      "outlineLevels": [ 1 ],
+      "severity": "Error",
+      "expected": {
+        "fontColor": "#D32F2F"
+      }
+    },
+    {
+      "ruleId": "heading-2-color",
+      "displayName": "Heading 2 color",
+      "storyScopes": [ "Main" ],
+      "styleNames": [ "Heading 2", "标题 2" ],
+      "outlineLevels": [ 2 ],
+      "severity": "Error",
+      "expected": {
+        "fontColor": "#1976D2"
+      }
+    },
+    {
+      "ruleId": "heading-3-color",
+      "displayName": "Heading 3 color",
+      "storyScopes": [ "Main" ],
+      "styleNames": [ "Heading 3", "标题 3" ],
+      "outlineLevels": [ 3 ],
+      "severity": "Error",
+      "expected": {
+        "fontColor": "#388E3C"
+      }
+    },
+    {
+      "ruleId": "toc-1-color",
+      "displayName": "TOC 1 color",
+      "storyScopes": [ "Main" ],
+      "styleNames": [ "TOC 1", "目录 1" ],
+      "severity": "Warning",
+      "expected": {
+        "fontColor": "#8E24AA"
+      }
+    },
+    {
+      "ruleId": "toc-2-color",
+      "displayName": "TOC 2 color",
+      "storyScopes": [ "Main" ],
+      "styleNames": [ "TOC 2", "目录 2" ],
+      "severity": "Warning",
+      "expected": {
+        "fontColor": "#00897B"
+      }
+    },
+    {
+      "ruleId": "toc-3-color",
+      "displayName": "TOC 3 color",
+      "storyScopes": [ "Main" ],
+      "styleNames": [ "TOC 3", "目录 3" ],
+      "severity": "Warning",
+      "expected": {
+        "fontColor": "#FB8C00"
+      }
+    },
+    {
+      "ruleId": "caption-color",
+      "displayName": "Caption color",
+      "storyScopes": [ "Main" ],
+      "styleNames": [ "Caption", "题注" ],
+      "severity": "Warning",
+      "expected": {
+        "fontColor": "#6D4C41"
+      }
+    },
+    {
+      "ruleId": "header-color",
+      "displayName": "Header color",
+      "storyScopes": [ "Header" ],
+      "applyToAnyNonEmptyParagraph": true,
+      "severity": "Warning",
+      "expected": {
+        "fontColor": "#C2185B"
+      }
+    },
+    {
+      "ruleId": "page-number-color",
+      "displayName": "Page number color",
+      "storyScopes": [ "Header", "Footer" ],
+      "applyToPageNumberParagraph": true,
+      "severity": "Warning",
+      "expected": {
+        "fontColor": "#455A64"
+      }
+    },
+    {
+      "ruleId": "footer-color",
+      "displayName": "Footer color",
+      "storyScopes": [ "Footer" ],
+      "applyToAnyNonEmptyParagraph": true,
+      "severity": "Warning",
+      "expected": {
+        "fontColor": "#3949AB"
+      }
+    },
+    {
+      "ruleId": "body-color",
+      "displayName": "Body color",
+      "storyScopes": [ "Main" ],
+      "applyToAnyNonEmptyParagraph": true,
+      "severity": "Warning",
+      "expected": {
+        "fontColor": "#37474F"
+      }
+    }
+  ]
+}

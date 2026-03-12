@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <Reference Include="Microsoft.Office.Interop.Word">
+      <HintPath>..\..\vendor\office-interop\Microsoft.Office.Interop.Word.dll</HintPath>
+      <EmbedInteropTypes>false</EmbedInteropTypes>
+    </Reference>
+    <Reference Include="Office">
+      <HintPath>..\..\vendor\office-interop\Office.dll</HintPath>
+      <EmbedInteropTypes>false</EmbedInteropTypes>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\PaperFormat.Domain\Enums.cs" Link="Domain\Enums.cs" />
+    <Compile Include="..\PaperFormat.Domain\RuleProfile.cs" Link="Domain\RuleProfile.cs" />
+    <Compile Include="..\PaperFormat.Domain\ProcessingModels.cs" Link="Domain\ProcessingModels.cs" />
+    <Compile Include="..\PaperFormat.Application\Abstractions.cs" Link="Application\Abstractions.cs" />
+    <Compile Include="..\PaperFormat.Application\DocumentProcessingCoordinator.cs" Link="Application\DocumentProcessingCoordinator.cs" />
+    <Compile Include="..\PaperFormat.Infrastructure.Word\JsonOptionsFactory.cs" Link="Infrastructure\JsonOptionsFactory.cs" />
+    <Compile Include="..\PaperFormat.Infrastructure.Word\JsonRuleProfileStore.cs" Link="Infrastructure\JsonRuleProfileStore.cs" />
+    <Compile Include="..\PaperFormat.Infrastructure.Word\JsonProcessingReportStore.cs" Link="Infrastructure\JsonProcessingReportStore.cs" />
+    <Compile Include="..\PaperFormat.Infrastructure.Word\StaTaskRunner.cs" Link="Infrastructure\StaTaskRunner.cs" />
+    <Compile Include="..\PaperFormat.Infrastructure.Word\WordDocumentProcessor.cs" Link="Infrastructure\WordDocumentProcessor.cs" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>
