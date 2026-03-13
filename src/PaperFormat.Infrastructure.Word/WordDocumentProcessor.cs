@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using Microsoft.Office.Interop.Word;
 using PaperFormat.Application;
 using PaperFormat.Domain;
@@ -75,6 +76,10 @@ public sealed class WordDocumentProcessor : IWordDocumentProcessor
             Log("Evaluating paragraph rules");
             EvaluateParagraphRules(rawDocument, profile, request.ApplyAutoFixes, result.Issues, Log);
             Log($"Paragraph rules completed, issues={result.Issues.Count}");
+
+            Log("Evaluating caption numbering");
+            EvaluateCaptionNumbering(rawDocument, profile.CaptionNumbering, request.ApplyAutoFixes, result.Issues);
+            Log($"Caption numbering completed, issues={result.Issues.Count}");
 
             if (request.ApplyAutoFixes && !string.IsNullOrWhiteSpace(result.FixedDocumentPath))
             {
@@ -344,7 +349,21 @@ public sealed class WordDocumentProcessor : IWordDocumentProcessor
 
                 var outlineLevel = ConvertOutlineLevel(paragraph.OutlineLevel);
                 var hasPageNumberField = ContainsPageNumberField(range);
-                var rule = ResolveRule(profile, storyScope, styleName, outlineLevel, text, hasPageNumberField);
+                var isTableParagraph = IsTableParagraph(range);
+                var isTableHeaderParagraph = isTableParagraph && IsTableHeaderParagraph(range);
+                var isTableBodyParagraph = isTableParagraph && !isTableHeaderParagraph;
+                var isBibliographyParagraph = UpdateBibliographyState(storyScope, text, outlineLevel, stats);
+                var rule = ResolveRule(
+                    profile,
+                    storyScope,
+                    styleName,
+                    outlineLevel,
+                    text,
+                    hasPageNumberField,
+                    isTableParagraph,
+                    isTableHeaderParagraph,
+                    isTableBodyParagraph,
+                    isBibliographyParagraph);
                 if (rule is null)
                 {
                     continue;
@@ -357,7 +376,7 @@ public sealed class WordDocumentProcessor : IWordDocumentProcessor
                     continue;
                 }
 
-                var locator = CreateParagraphLocator(paragraph, stats.Scanned, styleName, text);
+                var locator = CreateParagraphLocator(paragraph, storyScope, stats.Scanned, styleName, text);
                 var font = range.Font;
                 var format = paragraph.Format;
 
@@ -551,7 +570,11 @@ public sealed class WordDocumentProcessor : IWordDocumentProcessor
         string styleName,
         int? outlineLevel,
         string text,
-        bool hasPageNumberField)
+        bool hasPageNumberField,
+        bool isTableParagraph,
+        bool isTableHeaderParagraph,
+        bool isTableBodyParagraph,
+        bool isBibliographyParagraph)
     {
         foreach (var rule in profile.ParagraphRules)
         {
@@ -565,6 +588,26 @@ public sealed class WordDocumentProcessor : IWordDocumentProcessor
                 return rule;
             }
 
+            if (rule.ApplyToTableParagraph && isTableParagraph)
+            {
+                return rule;
+            }
+
+            if (rule.ApplyToTableHeaderParagraph && isTableHeaderParagraph)
+            {
+                return rule;
+            }
+
+            if (rule.ApplyToTableBodyParagraph && isTableBodyParagraph)
+            {
+                return rule;
+            }
+
+            if (rule.ApplyToBibliographyParagraph && isBibliographyParagraph)
+            {
+                return rule;
+            }
+
             if (rule.StyleNames.Exists(candidate => StringEquals(candidate, styleName)))
             {
                 return rule;
@@ -574,13 +617,438 @@ public sealed class WordDocumentProcessor : IWordDocumentProcessor
             {
                 return rule;
             }
+
+            if (MatchesTextPatterns(rule, text))
+            {
+                return rule;
+            }
         }
 
         return profile.ParagraphRules.FirstOrDefault(rule =>
             MatchesStoryScope(rule, storyScope) &&
             !rule.ApplyToPageNumberParagraph &&
+            !rule.ApplyToTableParagraph &&
+            !rule.ApplyToTableHeaderParagraph &&
+            !rule.ApplyToTableBodyParagraph &&
+            !rule.ApplyToBibliographyParagraph &&
             rule.ApplyToAnyNonEmptyParagraph &&
             !string.IsNullOrWhiteSpace(text));
+    }
+
+    private static bool IsTableParagraph(MsWord.Range range)
+    {
+        try
+        {
+            return Convert.ToBoolean(range.get_Information(WdInformation.wdWithInTable));
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool UpdateBibliographyState(string storyScope, string text, int? outlineLevel, ParagraphScanStats stats)
+    {
+        if (!StringEquals(storyScope, "Main"))
+        {
+            stats.LastBibliographyEntrySeen = false;
+            return false;
+        }
+
+        if (IsBibliographyHeading(text))
+        {
+            stats.InBibliographySection = true;
+            stats.LastBibliographyEntrySeen = false;
+            return false;
+        }
+
+        if (stats.InBibliographySection && IsBoundaryHeading(text, outlineLevel))
+        {
+            stats.InBibliographySection = false;
+            stats.LastBibliographyEntrySeen = false;
+            return false;
+        }
+
+        if (!stats.InBibliographySection || string.IsNullOrWhiteSpace(text))
+        {
+            stats.LastBibliographyEntrySeen = false;
+            return false;
+        }
+
+        if (LooksLikeBibliographyEntry(text))
+        {
+            stats.LastBibliographyEntrySeen = true;
+            return true;
+        }
+
+        if (stats.LastBibliographyEntrySeen && LooksLikeBibliographyContinuation(text))
+        {
+            return true;
+        }
+
+        stats.LastBibliographyEntrySeen = false;
+        return false;
+    }
+
+    private static bool IsBibliographyHeading(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        return Regex.IsMatch(
+            text,
+            "^(References|Bibliography|参考文献)$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    }
+
+    private static bool IsBoundaryHeading(string text, int? outlineLevel)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        if (outlineLevel is int level && level <= 2 && !IsBibliographyHeading(text))
+        {
+            return true;
+        }
+
+        return Regex.IsMatch(
+            text,
+            "^(第[一二三四五六七八九十百]+章|\\d+\\.\\d+\\s+.+|附录|致谢)$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    }
+
+    private static bool LooksLikeBibliographyEntry(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        var patterns = new[]
+        {
+            "^\\[\\d+\\]\\s*.+$",
+            "^\\(\\d+\\)\\s*.+$",
+            "^\\d+\\.\\s+.+$",
+            "^[A-Z][A-Za-z'\\- ]+,\\s*(?:[A-Z]\\.\\s*)+.*(?:\\d{4}|\\[[A-Z]\\]).*$",
+            "^[A-Z][A-Za-z'\\- ]+\\s+(?:and|&)\\s+[A-Z][A-Za-z'\\- ]+.*\\d{4}.*$",
+            "^[\\u4E00-\\u9FFF]{1,6}[，,、].*(?:\\d{4}|\\[[JDMCPR]\\]).*$",
+            "^DOI\\s*[:：].+$",
+            "^https?://.+$"
+        };
+
+        return patterns.Any(pattern =>
+            Regex.IsMatch(text, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant));
+    }
+
+    private static bool LooksLikeBibliographyContinuation(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        if (LooksLikeBibliographyEntry(text) || IsBibliographyHeading(text))
+        {
+            return false;
+        }
+
+        if (Regex.IsMatch(
+            text,
+            "^(第[一二三四五六七八九十百]+章|\\d+\\.\\d+\\s+.+|附录|致谢|摘要|Abstract)$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsTableHeaderParagraph(MsWord.Range range)
+    {
+        Cell? cell = null;
+        Row? row = null;
+
+        try
+        {
+            if (range.Cells.Count == 0)
+            {
+                return false;
+            }
+
+            cell = range.Cells[1];
+            row = cell.Row;
+            return row.HeadingFormat != 0 || cell.RowIndex == 1;
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            ReleaseComObject(row);
+            ReleaseComObject(cell);
+        }
+    }
+
+    private static void EvaluateCaptionNumbering(
+        MsWord.Document document,
+        CaptionNumberingRule rule,
+        bool applyFixes,
+        ICollection<IssueRecord> issues)
+    {
+        if (!rule.Enabled)
+        {
+            return;
+        }
+
+        var stateByKind = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        for (var index = 1; index <= document.Paragraphs.Count; index++)
+        {
+            MsWord.Paragraph? paragraph = null;
+
+            try
+            {
+                paragraph = document.Paragraphs[index];
+                var text = NormalizeText(paragraph.Range.Text);
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    continue;
+                }
+
+                if (TryMatchCaptionNumber(rule.FigurePatterns, text, out var figureMatch))
+                {
+                    EvaluateCaptionSequence("Figure", figureMatch, text, paragraph, index, rule, applyFixes, stateByKind, issues);
+                    continue;
+                }
+
+                if (TryMatchCaptionNumber(rule.TablePatterns, text, out var tableMatch))
+                {
+                    EvaluateCaptionSequence("Table", tableMatch, text, paragraph, index, rule, applyFixes, stateByKind, issues);
+                }
+            }
+            finally
+            {
+                ReleaseComObject(paragraph);
+            }
+        }
+    }
+
+    private static bool TryMatchCaptionNumber(IReadOnlyList<string> patterns, string text, out CaptionNumberMatch matchResult)
+    {
+        foreach (var pattern in patterns)
+        {
+            if (string.IsNullOrWhiteSpace(pattern))
+            {
+                continue;
+            }
+
+            var match = Regex.Match(text, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            if (!match.Success)
+            {
+                continue;
+            }
+
+            if (match.Groups.Count > 2 &&
+                int.TryParse(match.Groups[1].Value, out var chapterNumber) &&
+                int.TryParse(match.Groups[2].Value, out var serialNumber))
+            {
+                matchResult = new CaptionNumberMatch(chapterNumber, serialNumber);
+                return true;
+            }
+
+            if (match.Groups.Count > 3 &&
+                int.TryParse(match.Groups[3].Value, out var plainNumber))
+            {
+                matchResult = new CaptionNumberMatch(null, plainNumber);
+                return true;
+            }
+
+            var group = match.Groups.Count > 1 ? match.Groups[1].Value : string.Empty;
+            if (int.TryParse(group, out var number))
+            {
+                matchResult = new CaptionNumberMatch(null, number);
+                return true;
+            }
+        }
+
+        matchResult = default;
+        return false;
+    }
+
+    private static void EvaluateCaptionSequence(
+        string kind,
+        CaptionNumberMatch actualNumber,
+        string text,
+        MsWord.Paragraph paragraph,
+        int paragraphIndex,
+        CaptionNumberingRule rule,
+        bool applyFixes,
+        IDictionary<string, int> stateByKind,
+        ICollection<IssueRecord> issues)
+    {
+        var sequenceKey = actualNumber.ChapterNumber is int chapter
+            ? $"{kind}:{chapter}"
+            : kind;
+        var expectedNumber = stateByKind.TryGetValue(sequenceKey, out var lastNumber) ? lastNumber + 1 : 1;
+        stateByKind[sequenceKey] = actualNumber.SerialNumber;
+
+        if (actualNumber.SerialNumber == expectedNumber)
+        {
+            return;
+        }
+
+        var expectedValue = actualNumber.ChapterNumber is int expectedChapter
+            ? $"{expectedChapter}-{expectedNumber}"
+            : expectedNumber.ToString();
+        var actualValue = actualNumber.ChapterNumber is int actualChapter
+            ? $"{actualChapter}-{actualNumber.SerialNumber}"
+            : actualNumber.SerialNumber.ToString();
+        var canAutoFix = rule.AutoFixPlainText && !ContainsAnyFields(paragraph.Range);
+        var status = IssueStatus.Detected;
+
+        if (canAutoFix && applyFixes &&
+            TryRewriteCaptionNumber(paragraph.Range, actualNumber, expectedNumber, out var rewrittenValue))
+        {
+            actualValue = rewrittenValue;
+            status = IssueStatus.Fixed;
+        }
+
+        issues.Add(new IssueRecord
+        {
+            RuleId = $"caption-numbering.{kind.ToLowerInvariant()}",
+            RuleName = $"{kind} caption numbering",
+            Severity = rule.Severity,
+            PropertyName = "CaptionNumber",
+            ExpectedValue = expectedValue,
+            ActualValue = actualValue,
+            CanAutoFix = canAutoFix,
+            Status = status,
+            Location = CreateParagraphLocator(paragraph, "Main", paragraphIndex, string.Empty, text)
+        });
+    }
+
+    private static bool TryRewriteCaptionNumber(
+        MsWord.Range paragraphRange,
+        CaptionNumberMatch actualNumber,
+        int expectedSerialNumber,
+        out string updatedNumber)
+    {
+        var expectedDisplay = actualNumber.ChapterNumber is int chapter
+            ? $"{chapter}-{expectedSerialNumber}"
+            : expectedSerialNumber.ToString();
+
+        MsWord.Range? editableRange = null;
+
+        try
+        {
+            editableRange = GetEditableParagraphTextRange(paragraphRange);
+            var editableText = editableRange.Text;
+
+            if (string.IsNullOrWhiteSpace(editableText))
+            {
+                updatedNumber = expectedDisplay;
+                return false;
+            }
+
+            string updatedText;
+            if (actualNumber.ChapterNumber is int actualChapter)
+            {
+                var currentDisplay = $"{actualChapter}-{actualNumber.SerialNumber}";
+                updatedText = ReplaceFirst(editableText, currentDisplay, expectedDisplay);
+            }
+            else
+            {
+                var currentDisplay = actualNumber.SerialNumber.ToString();
+                updatedText = ReplaceFirst(editableText, currentDisplay, expectedDisplay);
+            }
+
+            if (string.Equals(updatedText, editableText, StringComparison.Ordinal))
+            {
+                updatedNumber = expectedDisplay;
+                return false;
+            }
+
+            editableRange.Text = updatedText;
+            updatedNumber = expectedDisplay;
+            return true;
+        }
+        finally
+        {
+            ReleaseComObject(editableRange);
+        }
+    }
+
+    private static MsWord.Range GetEditableParagraphTextRange(MsWord.Range paragraphRange)
+    {
+        var editableRange = paragraphRange.Duplicate;
+        var text = editableRange.Text;
+        var trimCount = 0;
+
+        for (var index = text.Length - 1; index >= 0; index--)
+        {
+            var ch = text[index];
+            if (ch is '\r' or '\a' or '\n')
+            {
+                trimCount++;
+                continue;
+            }
+
+            break;
+        }
+
+        editableRange.End -= trimCount;
+        return editableRange;
+    }
+
+    private static string ReplaceFirst(string source, string oldValue, string newValue)
+    {
+        var startIndex = source.IndexOf(oldValue, StringComparison.Ordinal);
+        if (startIndex < 0)
+        {
+            return source;
+        }
+
+        return source[..startIndex] + newValue + source[(startIndex + oldValue.Length)..];
+    }
+
+    private static bool ContainsAnyFields(MsWord.Range range)
+    {
+        try
+        {
+            return range.Fields.Count > 0;
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    private static bool MatchesTextPatterns(ParagraphFormattingRule rule, string text)
+    {
+        if (rule.TextPatterns.Count == 0 || string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        foreach (var pattern in rule.TextPatterns)
+        {
+            if (string.IsNullOrWhiteSpace(pattern))
+            {
+                continue;
+            }
+
+            if (Regex.IsMatch(text, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool MatchesStoryScope(ParagraphFormattingRule rule, string storyScope)
@@ -647,11 +1115,12 @@ public sealed class WordDocumentProcessor : IWordDocumentProcessor
         }
     }
 
-    private static NodeLocator CreateParagraphLocator(MsWord.Paragraph paragraph, int paragraphIndex, string styleName, string text)
+    private static NodeLocator CreateParagraphLocator(MsWord.Paragraph paragraph, string storyScope, int paragraphIndex, string styleName, string text)
     {
         return new NodeLocator
         {
             NodeKind = NodeKind.Paragraph,
+            StoryScope = storyScope,
             ParagraphIndex = paragraphIndex,
             RangeStart = paragraph.Range.Start,
             RangeEnd = paragraph.Range.End,
@@ -921,8 +1390,14 @@ public sealed class WordDocumentProcessor : IWordDocumentProcessor
 
         public HashSet<string> StoryScopes { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+        public bool InBibliographySection { get; set; }
+
+        public bool LastBibliographyEntrySeen { get; set; }
+
         public int Scanned { get; set; }
 
         public int Matched { get; set; }
     }
+
+    private readonly record struct CaptionNumberMatch(int? ChapterNumber, int SerialNumber);
 }

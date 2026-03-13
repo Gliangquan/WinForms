@@ -1,17 +1,29 @@
 {
   "profileName": "Color Coverage Test",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Color test profile for the currently supported document elements.",
   "document": {
     "enforceA4Paper": false
+  },
+  "captionNumbering": {
+    "enabled": true,
+    "autoFixPlainText": true,
+    "severity": "Warning",
+    "figurePatterns": [
+      "^(?:Figure|\\u56FE)\\s*(?:(\\d+)-(\\d+)|(\\d+)).*$"
+    ],
+    "tablePatterns": [
+      "^(?:Table|\\u8868)\\s*(?:(\\d+)-(\\d+)|(\\d+)).*$"
+    ]
   },
   "paragraphRules": [
     {
       "ruleId": "heading-1-color",
       "displayName": "Heading 1 color",
       "storyScopes": [ "Main" ],
-      "styleNames": [ "Heading 1", "标题 1" ],
+      "styleNames": [ "Heading 1", "\\u6807\\u9898 1" ],
       "outlineLevels": [ 1 ],
+      "textPatterns": [ "^(?:\\u7b2c[\\u4e00-\\u4e8c\\u4e09\\u56db\\u4e94\\u516d\\u4e03\\u516b\\u4e5d\\u5341\\u767e]+\\u7ae0)\\s*.*$" ],
       "severity": "Error",
       "expected": {
         "fontColor": "#D32F2F"
@@ -21,8 +33,9 @@
       "ruleId": "heading-2-color",
       "displayName": "Heading 2 color",
       "storyScopes": [ "Main" ],
-      "styleNames": [ "Heading 2", "标题 2" ],
+      "styleNames": [ "Heading 2", "\\u6807\\u9898 2" ],
       "outlineLevels": [ 2 ],
+      "textPatterns": [ "^\\d+\\.\\d+\\s+.+$" ],
       "severity": "Error",
       "expected": {
         "fontColor": "#1976D2"
@@ -32,8 +45,9 @@
       "ruleId": "heading-3-color",
       "displayName": "Heading 3 color",
       "storyScopes": [ "Main" ],
-      "styleNames": [ "Heading 3", "标题 3" ],
+      "styleNames": [ "Heading 3", "\\u6807\\u9898 3" ],
       "outlineLevels": [ 3 ],
+      "textPatterns": [ "^\\d+\\.\\d+\\.\\d+\\s+.+$" ],
       "severity": "Error",
       "expected": {
         "fontColor": "#388E3C"
@@ -43,7 +57,7 @@
       "ruleId": "toc-1-color",
       "displayName": "TOC 1 color",
       "storyScopes": [ "Main" ],
-      "styleNames": [ "TOC 1", "目录 1" ],
+      "styleNames": [ "TOC 1", "\\u76ee\\u5f55 1" ],
       "severity": "Warning",
       "expected": {
         "fontColor": "#8E24AA"
@@ -53,7 +67,7 @@
       "ruleId": "toc-2-color",
       "displayName": "TOC 2 color",
       "storyScopes": [ "Main" ],
-      "styleNames": [ "TOC 2", "目录 2" ],
+      "styleNames": [ "TOC 2", "\\u76ee\\u5f55 2" ],
       "severity": "Warning",
       "expected": {
         "fontColor": "#00897B"
@@ -63,20 +77,52 @@
       "ruleId": "toc-3-color",
       "displayName": "TOC 3 color",
       "storyScopes": [ "Main" ],
-      "styleNames": [ "TOC 3", "目录 3" ],
+      "styleNames": [ "TOC 3", "\\u76ee\\u5f55 3" ],
       "severity": "Warning",
       "expected": {
         "fontColor": "#FB8C00"
       }
     },
     {
-      "ruleId": "caption-color",
-      "displayName": "Caption color",
+      "ruleId": "figure-caption-color",
+      "displayName": "Figure caption color",
       "storyScopes": [ "Main" ],
-      "styleNames": [ "Caption", "题注" ],
+      "styleNames": [ "Caption", "\\u9898\\u6ce8" ],
+      "textPatterns": [ "^(?:\\u56FE)\\s*(?:\\d+-)?\\d+.*$" ],
       "severity": "Warning",
       "expected": {
         "fontColor": "#6D4C41"
+      }
+    },
+    {
+      "ruleId": "table-caption-color",
+      "displayName": "Table caption color",
+      "storyScopes": [ "Main" ],
+      "styleNames": [ "Caption", "\\u9898\\u6ce8" ],
+      "textPatterns": [ "^(?:\\u8868)\\s*(?:\\d+-)?\\d+.*$" ],
+      "severity": "Warning",
+      "expected": {
+        "fontColor": "#8D6E63"
+      }
+    },
+    {
+      "ruleId": "table-header-text-color",
+      "displayName": "Table header text color",
+      "storyScopes": [ "Main" ],
+      "applyToTableHeaderParagraph": true,
+      "severity": "Warning",
+      "expected": {
+        "fontColor": "#00796B"
+      }
+    },
+    {
+      "ruleId": "table-body-text-color",
+      "displayName": "Table body text color",
+      "storyScopes": [ "Main" ],
+      "applyToTableBodyParagraph": true,
+      "severity": "Warning",
+      "expected": {
+        "fontColor": "#546E7A"
       }
     },
     {
@@ -117,6 +163,19 @@
       "severity": "Warning",
       "expected": {
         "fontColor": "#37474F"
+      }
+    },
+    {
+      "ruleId": "bibliography-color",
+      "displayName": "Bibliography color",
+      "storyScopes": [ "Main" ],
+      "applyToBibliographyParagraph": true,
+      "textPatterns": [
+        "^(\\[\\d+\\]|\\(\\d+\\)|\\d+\\.\\s|[A-Z][A-Za-z'\\- ]+,|[\\u4E00-\\u9FFF]{1,6}[，,、].*\\d{4})"
+      ],
+      "severity": "Warning",
+      "expected": {
+        "fontColor": "#5D4037"
       }
     }
   ]

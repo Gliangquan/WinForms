@@ -10,6 +10,8 @@ public sealed class RuleProfile
 
     public DocumentFormattingRule Document { get; init; } = new();
 
+    public CaptionNumberingRule CaptionNumbering { get; init; } = new();
+
     public List<ParagraphFormattingRule> ParagraphRules { get; init; } = [];
 }
 
@@ -41,9 +43,19 @@ public sealed class ParagraphFormattingRule
 
     public List<int> OutlineLevels { get; init; } = [];
 
+    public List<string> TextPatterns { get; init; } = [];
+
     public List<string> StoryScopes { get; init; } = [];
 
     public bool ApplyToPageNumberParagraph { get; init; }
+
+    public bool ApplyToTableParagraph { get; init; }
+
+    public bool ApplyToTableHeaderParagraph { get; init; }
+
+    public bool ApplyToTableBodyParagraph { get; init; }
+
+    public bool ApplyToBibliographyParagraph { get; init; }
 
     public bool ApplyToAnyNonEmptyParagraph { get; init; }
 
@@ -52,6 +64,19 @@ public sealed class ParagraphFormattingRule
     public IssueSeverity Severity { get; init; } = IssueSeverity.Warning;
 
     public ParagraphFormattingExpectation Expected { get; init; } = new();
+}
+
+public sealed class CaptionNumberingRule
+{
+    public bool Enabled { get; init; }
+
+    public bool AutoFixPlainText { get; init; }
+
+    public IssueSeverity Severity { get; init; } = IssueSeverity.Warning;
+
+    public List<string> FigurePatterns { get; init; } = [];
+
+    public List<string> TablePatterns { get; init; } = [];
 }
 
 public sealed class ParagraphFormattingExpectation

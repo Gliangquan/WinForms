@@ -19,6 +19,8 @@ public sealed class NodeLocator
 {
     public NodeKind NodeKind { get; init; } = NodeKind.Paragraph;
 
+    public string StoryScope { get; init; } = string.Empty;
+
     public int SectionIndex { get; init; }
 
     public int ParagraphIndex { get; init; }
